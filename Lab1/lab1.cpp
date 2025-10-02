@@ -160,14 +160,14 @@ int main(int argc, char const *argv[])
         }
 
         // Task 3 (1 Direction Pathfinding-X Movement First)
-        //  int deltaY=goal.y-robot.y;
-        //  int deltaX=goal.x-robot.x;
-        //  std::cout<<((deltaX > 0) - (deltaX < 0))<<" ";
-        //  if (deltaX!=0){
-        //      robot.x+=1*((deltaX > 0) - (deltaX < 0));
-        //  }else if (deltaY!=0){
-        //      robot.y+=1*((deltaY > 0) - (deltaY < 0));
-        //  }
+         int deltaY=goal.y-robot.y;
+         int deltaX=goal.x-robot.x;
+         std::cout<<((deltaX > 0) - (deltaX < 0))<<" ";
+         if (deltaX!=0){
+             robot.x+=1*((deltaX > 0) - (deltaX < 0));
+         }else if (deltaY!=0){
+             robot.y+=1*((deltaY > 0) - (deltaY < 0));
+         }
 
         // Task 4 (1 Direction Pathfinding-Y Movement First)
         //  if (deltaY!=0){
@@ -177,33 +177,34 @@ int main(int argc, char const *argv[])
         //  }
 
         // Task 5 (Diagonal Straight Line Pathfinding to top left corners)
-        if (x_first && deltaX != 0)
-        {
-            robot.x += 1 * ((deltaX > 0) - (deltaX < 0));
-            robot.y += slope * ((deltaY > 0) - (deltaY < 0));
-        }
-        if (x_first && deltaX == 0 && remainder != 0)
-        {
-            robot.y += 1 * ((deltaY > 0) - (deltaY < 0));
-            remainder -= 1;
-        }
-        if (!x_first && deltaY != 0)
-        {
-            robot.y += 1 * ((deltaY > 0) - (deltaY < 0));
-            robot.x += slope * ((deltaX > 0) - (deltaX < 0));
-        }
-        if (!x_first && deltaY == 0 && remainder != 0)
-        {
-            robot.x += 1 * ((deltaX > 0) - (deltaX < 0));
-            remainder -= 1;
-        }
+        // if (x_first && deltaX != 0)
+        // {
+        //     robot.x += 1 * ((deltaX > 0) - (deltaX < 0));
+        //     robot.y += slope * ((deltaY > 0) - (deltaY < 0));
+        // }
+        // if (x_first && deltaX == 0 && remainder != 0)
+        // {
+        //     robot.y += 1 * ((deltaY > 0) - (deltaY < 0));
+        //     remainder -= 1;
+        // }
+        // if (!x_first && deltaY != 0)
+        // {
+        //     robot.y += 1 * ((deltaY > 0) - (deltaY < 0));
+        //     robot.x += slope * ((deltaX > 0) - (deltaX < 0));
+        // }
+        // if (!x_first && deltaY == 0 && remainder != 0)
+        // {
+        //     robot.x += 1 * ((deltaX > 0) - (deltaX < 0));
+        //     remainder -= 1;
+        // }
         //Task 5
         // deltaY = goal.y - robot.y;
         // deltaX = goal.x - robot.x;
         
         //Task 6: To center of goal 
-        deltaY = goalCenterY - robot.y;
-        deltaX = goalCenterX - robot.x;
+        // deltaY = goalCenterY - robot.y;
+        // deltaX = goalCenterX - robot.x;
+
         // Task 2: Check if robot reached goal
         if (is_goal_detected(robot, goal))
         {
