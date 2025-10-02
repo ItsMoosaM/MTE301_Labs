@@ -1,0 +1,23 @@
+// .vscode/tasks.json
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",  // Task name that matches the preLaunchTask in launch.json
+            "type": "shell",
+            "command": "make",  // Use Makefile to build the project
+            "args": ["lab4"],  // Target name from the Makefile
+            "group": {
+                "kind": "build",
+                "isDefault": true  // This sets it as the default build task
+            },
+            "problemMatcher": ["$gcc"],  // Helps with parsing errors and warnings
+            "detail": "Build using Makefile",
+            "options": {
+                "cwd": "${workspaceFolder}"  // Ensure the working directory is correct
+            }
+        }
+    ]
+}
+
+

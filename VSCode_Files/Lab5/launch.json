@@ -1,0 +1,34 @@
+// .vscode/launch.json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug C++ Program",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/lab5",  // Path to the compiled executable
+            "args": [],  // Any arguments you need to pass to the program
+            "stopAtEntry": false,  // Do not stop at the entry point of the program
+            "cwd": "${workspaceFolder}",  // Set working directory to the workspace folder
+            "environment": [],
+            "externalConsole": false,  // Use the internal terminal in VS Code
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",  // Ensure the correct path to GDB
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build",  // Runs the "build" task before starting the debugger
+            "logging": {
+                "engineLogging": true,  // Enable detailed logging for the debug engine
+                "trace": true,
+                "traceResponse": true
+            }
+        }
+    ]
+}
+
+

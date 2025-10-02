@@ -1,0 +1,11 @@
+Lab*/app
+*.vscode
+grid*.csv
+
+#Executables
+*.o
+*.exe
+lab1
+lab2
+lab3
+debug_app
