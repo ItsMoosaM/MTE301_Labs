@@ -202,8 +202,8 @@ int main(int argc, char const *argv[])
         // deltaX = goal.x - robot.x;
         
         //Task 6: To center of goal 
-        // deltaY = goalCenterY - robot.y;
-        // deltaX = goalCenterX - robot.x;
+        deltaY = goalCenterY - robot.y;
+        deltaX = goalCenterX - robot.x;
 
         // Task 2: Check if robot reached goal
         if (is_goal_detected(robot, goal))
