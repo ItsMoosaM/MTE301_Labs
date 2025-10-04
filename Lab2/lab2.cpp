@@ -36,46 +36,44 @@ bool succeed;
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++WRITE ANY FUNCTIONS OR GLOBAL VARIABLES HERE+++++++++++++++
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// Task 2
-bool is_goal_detected(const Object &robot, const Object &goal)
+// Part 1 Task 2
+bool isGoalDetected(const Object &robot, const Object &goal)
 {
-    // Define robot corner positions
-    int topLeftX = robot.x - radius;
-    int topLeftY = robot.y - radius;
+    // Define robot edges
+    int robotLeft = (robot.x - radius);
+    int robotRight = (robot.x + radius);
+    int robotTop = (robot.y - radius);
+    int robotBottom = (robot.y + radius);
 
-    int topRightX = robot.x + radius;
-    int topRightY = robot.y - radius;
-
-    int bottomLeftX = robot.x - radius;
-    int bottomLeftY = robot.y + radius;
-
-    int bottomRightX = robot.x + radius;
-    int bottomRightY = robot.y + radius;
-
-    // Goal boundaries
+    // Goal boundaries coordinates
     int goalLeft = goal.x;
     int goalRight = goal.x + goal_width;
     int goalTop = goal.y;
     int goalBottom = goal.y + goal_height;
 
-    // Check if any robot corner is inside the goal rectangle
-    auto in_goal = [&](int x, int y)
+    // Check top left
+    if (robotLeft >= goalLeft && robotLeft <= goalRight && robotTop >= goalTop && robotTop <= goalBottom)
     {
-        return x >= goalLeft && x <= goalRight && y >= goalTop && y <= goalBottom;
-    };
-
-    if (in_goal(topLeftX, topLeftY))
         return true;
-    if (in_goal(topRightX, topRightY))
+    }
+    // Check top right
+    if (robotRight >= goalLeft && robotRight <= goalRight && robotTop >= goalTop && robotTop <= goalBottom)
+    {
         return true;
-    if (in_goal(bottomLeftX, bottomLeftY))
+    }
+    // Check bottom left
+    if (robotLeft >= goalLeft && robotLeft <= goalRight && robotBottom >= goalTop && robotBottom <= goalBottom)
+    {
         return true;
-    if (in_goal(bottomRightX, bottomRightY))
+    }
+    // Check bottom right
+    if (robotRight >= goalLeft && robotRight <= goalRight && robotBottom >= goalTop && robotBottom <= goalBottom)
+    {
         return true;
-
+    }
     return false; // None of the corners are inside the goal
 }
-
+// Task 1
 bool isObstacleDetected(const Object &robot)
 {
     int robotLeft = (robot.x - radius);
@@ -105,6 +103,7 @@ bool isObstacleDetected(const Object &robot)
     return false;
 }
 
+// Task 2
 void obstacleAvoidance(Object &robot, std::string direction)
 {
     while (isObstacleDetected(robot))
@@ -119,10 +118,10 @@ void obstacleAvoidance(Object &robot, std::string direction)
             robot.x += 1;
             // direction == "X";
         }
-
         robot_pos.push_back({robot.x, robot.y});
     }
 }
+
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -156,20 +155,10 @@ int main(int argc, char const *argv[])
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++++DEFINE ANY LOCAL VARIABLE HERE+++++++++++++++++++++++
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // Task 1
-    int robotLeft = (robot.x - radius);
-    int robotRight = (robot.x + radius);
-    int robotTop = (robot.y - radius);
-    int robotBottom = (robot.y + radius);
-
-    // Task 2
-    int goalLeft = goal.x,
-        goalRight = goal.x + goal_width,
-        goalTop = goal.y,
-        goalBotton = goal.y + goal_height;
 
     // Task 2 of Lab 2
     std::string direction="X";
+    
     // main loop
     while (true)
     {
@@ -181,21 +170,22 @@ int main(int argc, char const *argv[])
         int robotTop = (robot.y - radius);
         int robotBottom = (robot.y + radius);
 
-        // Task 1 (Check if robot hit boundary)
+        // Part 1 Task 1 (Check if robot hit boundary)
         if ((robotLeft) <= 0 || (robotRight) >= width || (robotTop) <= 0 || (robotBottom) >= height)
         {
             succeed = false;
             std::cout << "Robot hit boundary" << std::endl;
             break;
         }
-        // Task 2: Check if robot reached goal
-        if (is_goal_detected(robot, goal))
+        // Part 1 Task 2: Check if robot reached goal
+        if (isGoalDetected(robot, goal))
         {
             succeed = true;
             std::cout << "Robot reached the goal!" << std::endl;
             break;
         }
-        // Task 3 (1 Direction Pathfinding-X Movement First)
+
+        // Part 1 Task 3 (1 Direction Pathfinding-X Movement First)
         int deltaY = goal.y - robot.y;
         int deltaX = goal.x - robot.x;
         if (deltaX != 0)
@@ -222,9 +212,8 @@ int main(int argc, char const *argv[])
         {
             obstacleAvoidance(robot, direction);
         }
-        //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
         //++++++++++++++++END YOUR CODE HERE++++++++++++++++++++++++++++++++++
-        //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         // place the current robot position at the time step to robot_pos
         robot_pos.push_back({robot.x, robot.y});

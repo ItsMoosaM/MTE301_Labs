@@ -5,6 +5,7 @@
 
 #include "utils.h"
 #include "render.h"
+
 using namespace std;
 
 //===== Main parameters =====
@@ -38,42 +39,40 @@ bool succeed;
 //+++++++++WRITE ANY FUNCTIONS OR GLOBAL VARIABLES HERE+++++++++++++++
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // Task 2
-bool is_goal_detected(const Object &robot, const Object &goal)
+bool isGoalDetected(const Object &robot, const Object &goal)
 {
-    // Define robot corner positions
-    int topLeftX = robot.x - radius;
-    int topLeftY = robot.y - radius;
+    // Define robot edges
+    int robotLeft = (robot.x - radius);
+    int robotRight = (robot.x + radius);
+    int robotTop = (robot.y - radius);
+    int robotBottom = (robot.y + radius);
 
-    int topRightX = robot.x + radius;
-    int topRightY = robot.y - radius;
-
-    int bottomLeftX = robot.x - radius;
-    int bottomLeftY = robot.y + radius;
-
-    int bottomRightX = robot.x + radius;
-    int bottomRightY = robot.y + radius;
-
-    // Goal boundaries
+    // Goal boundaries coordinates
     int goalLeft = goal.x;
     int goalRight = goal.x + goal_width;
     int goalTop = goal.y;
     int goalBottom = goal.y + goal_height;
 
-    // Check if any robot corner is inside the goal rectangle
-    auto in_goal = [&](int x, int y)
+    // Check top left
+    if (robotLeft >= goalLeft && robotLeft <= goalRight && robotTop >= goalTop && robotTop <= goalBottom)
     {
-        return x >= goalLeft && x <= goalRight && y >= goalTop && y <= goalBottom;
-    };
-
-    if (in_goal(topLeftX, topLeftY))
         return true;
-    if (in_goal(topRightX, topRightY))
+    }
+    // Check top right
+    if (robotRight >= goalLeft && robotRight <= goalRight && robotTop >= goalTop && robotTop <= goalBottom)
+    {
         return true;
-    if (in_goal(bottomLeftX, bottomLeftY))
+    }
+    // Check bottom left
+    if (robotLeft >= goalLeft && robotLeft <= goalRight && robotBottom >= goalTop && robotBottom <= goalBottom)
+    {
         return true;
-    if (in_goal(bottomRightX, bottomRightY))
+    }
+    // Check bottom right
+    if (robotRight >= goalLeft && robotRight <= goalRight && robotBottom >= goalTop && robotBottom <= goalBottom)
+    {
         return true;
-
+    }
     return false; // None of the corners are inside the goal
 }
 
@@ -104,93 +103,63 @@ int main(int argc, char const *argv[])
     // maximum count. Close the loop after 3600 iterations. As the window is displayed at 60fps, this is 60 seconds.
     int max_count = 0;
 
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //+++++++++++++++DEFINE ANY LOCAL VARIABLE HERE+++++++++++++++++++++++
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-    // Task 1
-    int robotLeft = (robot.x - radius);
-    int robotRight = (robot.x + radius);
-    int robotTop = (robot.y - radius);
-    int robotBottom = (robot.y + radius);
-
-    // Task 2
-    int goalLeft = goal.x,
-        goalRight = goal.x + goal_width,
-        goalTop = goal.y,
-        goalBotton = goal.y + goal_height;
-
-    // Task 6 (To goal center)
-    int goalCenterY = goal.y + goal_height / 2;
-    int goalCenterX = goal.x + goal_width / 2;
-
-    // Task 7: Find closest corner
 
     // // For Task 3-5
     // int deltaY = goal.y - robot.y;
     // int deltaX = goal.x - robot.x;
-    // // For Task 6
-    // int deltaY = goalCenterY - robot.y;
-    // int deltaX = goalCenterX - robot.x;
 
-    int deltaY = 0;
-    int deltaX = 0;
+    // Task 6 (To goal center)
+    int goalCenterY = goal.y + goal_height / 2;
+    int goalCenterX = goal.x + goal_width / 2;
+    int deltaY = goalCenterY - robot.y;
+    int deltaX = goalCenterX - robot.x;
 
+    // Task 5 (Diagonal movement)
     bool x_first = true;
     int slope = 0, remainder = 0;
-
-    // check if slope>1
-    if (std::abs(deltaY) > std::abs(deltaX) && deltaX != 0)
+    // Check which distance is more and calculate accoridingly
+    if (abs(deltaY) > abs(deltaX) && deltaX != 0) // slope=dy/dx
     {
         slope = abs(deltaY) / abs(deltaX);
-        remainder = abs(deltaY) % abs(deltaX);
+        remainder = (deltaY) % (deltaX);
         x_first = true;
     }
-    else if (deltaY != 0)
+    else if (deltaY != 0) // slope=dx/dy
     {
 
         slope = abs(deltaX) / abs(deltaY);
-        remainder = abs(deltaX) % abs(deltaY);
+        remainder = deltaX % deltaY;
         x_first = false;
     }
-    else
-    {
-        // Already at goal center
-        slope = 0;
-        remainder = 0;
-    }
 
-    std::vector<std::pair<int, int>> goal_corners = {
+    // Task 7
+    vector<pair<int, int>> goal_corners = {
         {goal.x, goal.y},                           // Top-left
         {goal.x + goal.width, goal.y},              // Top-right
         {goal.x, goal.y + goal.height},             // Bottom-left
         {goal.x + goal.width, goal.y + goal.height} // Bottom-right
     };
 
-    // Get robot center
-    int robotCenterX = robot.x + robot.width / 2;
-    int robotCenterY = robot.y + robot.height / 2;
-
     // Compute distances to each goal corner
     float min_dist = 2000.0f;
-    std::pair<int, int> closest_corner;
 
+    int goalTargetX;
+    int goalTargetY;
     for (const auto &corner : goal_corners)
     {
-        int dx = robotCenterX - corner.first;
-        int dy = robotCenterY - corner.second;
-        float dist = std::sqrt(dx * dx + dy * dy);
+        int dx = robot.x - corner.first;
+        int dy = robot.y - corner.second;
+        float dist = sqrt(dx * dx + dy * dy);
 
         if (dist < min_dist)
         {
             min_dist = dist;
-            closest_corner = corner;
+            goalTargetX = corner.first;
+            goalTargetY = corner.second;
         }
     }
 
-    // Use the closest corner as the new goal target
-    int goalTargetX = closest_corner.first;
-    int goalTargetY = closest_corner.second;
 
     // main while loop
     while (true)
@@ -198,7 +167,11 @@ int main(int argc, char const *argv[])
         //++++++++++++++WRITE YOUR CODE HERE++++++++++++++++++++++++++++++++++
 
         // Task 1 (Check if robot hit boundary)
-        if ((robot.x - radius) <= 0 || (robot.x + radius) >= width || (robot.y - radius) <= 0 || (robot.y + radius) >= height)
+        int robotLeft = (robot.x - radius);
+        int robotRight = (robot.x + radius);
+        int robotTop = (robot.y - radius);
+        int robotBottom = (robot.y + radius);
+        if ((robotLeft) <= 0 || (robotRight) >= width || (robotTop) <= 0 || (robotBottom) >= height)
         {
             succeed = false;
             std::cout << "Robot hit boundary" << std::endl;
@@ -224,57 +197,21 @@ int main(int argc, char const *argv[])
         //      robot.x+=1*((deltaX > 0) - (deltaX < 0));
         //  }
 
-        std::vector<std::pair<int, int>> goal_corners = {
-            {goal.x, goal.y},                           // Top-left
-            {goal.x + goal.width, goal.y},              // Top-right
-            {goal.x, goal.y + goal.height},             // Bottom-left
-            {goal.x + goal.width, goal.y + goal.height} // Bottom-right
-        };
+        // Calculate The Distances
+        // Task 5 To top left corner
+        // int deltaY = goal.y - robot.y;
+        // int deltaX = goal.x - robot.x;
 
-        int robotCenterX = robot.x + robot.width / 2;
-        int robotCenterY = robot.y + robot.height / 2;
+        // Task 6: To center of goal
+        // int deltaY = goalCenterY - robot.y;
+        // int deltaX = goalCenterX - robot.x;
 
-        float min_dist = 2000.0f;
-        std::pair<int, int> closest_corner;
-
-        for (const auto &corner : goal_corners)
-        {
-            int dx = robotCenterX - corner.first;
-            int dy = robotCenterY - corner.second;
-            float dist = std::sqrt(dx * dx + dy * dy);
-
-            if (dist < min_dist)
-            {
-                min_dist = dist;
-                closest_corner = corner;
-            }
-        }
-
-        // Use closest corner as new target
-        int goalTargetX = closest_corner.first;
-        int goalTargetY = closest_corner.second;
-
-        // ======= Tasks 3–6: Move toward goal using slope logic =======
+        // Task 7 distances
+        // Use closest corner as target
         int deltaY = goalTargetY - robot.y;
         int deltaX = goalTargetX - robot.x;
 
-        int slope = 0;
-        int remainder = 0;
-        bool x_first = true;
-        if (std::abs(deltaY) > std::abs(deltaX) && deltaX != 0)
-        {
-            slope = abs(deltaY) / abs(deltaX);
-            remainder = abs(deltaY) % abs(deltaX);
-            x_first = true;
-        }
-        else if (deltaY != 0)
-        {
-
-            slope = abs(deltaX) / abs(deltaY);
-            remainder = abs(deltaX) % abs(deltaY);
-            x_first = false;
-        }
-        // Task 5 (Diagonal Straight Line Pathfinding to top left corners)
+        // Task 5 (Diagonal Straight Line Pathfinding)
         if (x_first && deltaX != 0)
         {
             robot.x += 1 * ((deltaX > 0) - (deltaX < 0));
@@ -295,25 +232,11 @@ int main(int argc, char const *argv[])
             robot.x += 1 * ((deltaX > 0) - (deltaX < 0));
             remainder -= 1;
         }
-        else {
-        // Final fallback movement (one step diagonally)
-        if (deltaX != 0) robot.x += (deltaX > 0 ? 1 : -1);
-        if (deltaY != 0) robot.y += (deltaY > 0 ? 1 : -1);
-    }
-
-        // Update The Distances
-        //  Task 5
-        //   deltaY = goal.y - robot.y;
-        //   deltaX = goal.x - robot.x;
-        // Task 6: To center of goal
-        // deltaY = goalCenterY - robot.y;
-        // deltaX = goalCenterX - robot.x;
 
         // Task 2: Check if robot reached goal
-        if (is_goal_detected(robot, goal))
+        if (isGoalDetected(robot, goal))
         {
             succeed = true;
-            std::cout << "Robot reached the goal!" << std::endl;
             break;
         }
 
