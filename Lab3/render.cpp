@@ -74,7 +74,7 @@ void draw(
 
     // increment only if not paused
     if (!isPaused) {
-        count++;
+        count+=1;
     }
 }
 
@@ -308,7 +308,7 @@ void draw_grid(
 
     // increment only if not paused
     if (!isPaused) {
-        count++;
+        count+=1;
     }
 
 }

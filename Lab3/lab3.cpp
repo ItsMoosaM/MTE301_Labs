@@ -18,22 +18,118 @@ class my_robot : public Object
     // define any private or protected members here
 public:
     // define constructor with necessary parameters
-    // example constructor that simply initializes grid to all -1
-    my_robot(int width, int height, int env_width, int env_height)
-    {
-        Object(width, height, env_width, env_height);
-    }
+    int lidar_range = 50;
+    std::vector<std::vector<int>> grid; // robot’s local occupancy grid
+
     // call the constructor of the Object base class
     // arguments are (width, height, env_width, env_height)
     // define the grid that the robot maps. It can be a nested array or vector of size 800x800
-    // example nested vector below
-    std::vector<std::vector<int>> grid = std::vector<std::vector<int>>(800, std::vector<int>(800, -1));
+    my_robot(int width, int height, int env_width, int env_height)
+        : Object(width, height, env_width, env_height)
+    {
+        // lidar_range = 50;
+        grid = std::vector<std::vector<int>>(800, std::vector<int>(800, -1));
+    }
+    // Task 1 Sensor Function
+    //  define the robot's sensor that defines (x, y) points of its grid as occupied/unoccupied/unknown (1/0/-1)
+    void robotSensor(grid_util &true_grid)
+    {
+        int radius = this->width / 2;
+        int x_c = this->x + radius, y_c = this->y + radius, lidar_range = 50;
 
-    // define the robot's sensor that defines (x, y) points of its grid as occupied/unoccupied/unknown (1/0/-1)
-    
+        for (int i = x_c - lidar_range; i <= x_c + lidar_range; i++)
+        {
+            for (int j = y_c - lidar_range; j <= y_c + lidar_range; j++)
+            {
+                if (i < 0 || j < 0 || i >= 800 || j >= 800)
+                    continue; // skip out-of-bounds
+                if ((i - x_c) * (i - x_c) + (j - y_c) * (j - y_c) <= lidar_range * lidar_range)
+                {
+                    grid[i][j] = Object::grid_value(true_grid, this, i, j, lidar_range);
+                }
+            }
+        }
+    }
     // use Object's grid_value() function to get grid values
     // arguments are (grid_util, this, x query, y query, range)
     // define any other public members and functions you wish to use
+
+    // Task 2 Wall Funcitons
+    std::pair<int, int> collisionDetection()
+    {
+        // v = (1/0/-1) if (top hit/free/bottom hit)
+        // h = (1/0/-1) if (right hit/free/left hit)
+        int radius = this->width / 2;
+        int v = 0, h = 0, c_x = this->x + radius, c_y = this->y + radius;
+        int tol = 15; // Center of robot from wall
+
+        if (grid[c_x][c_y - tol] == 1)
+        {
+            v = 1;
+        }
+        else if (grid[c_x][c_y + tol] == 1)
+        {
+            v = -1;
+        }
+        else
+        {
+            v = 0;
+        }
+        if (grid[c_x + tol][c_y] == 1)
+        {
+            h = 1;
+        }
+        else if (grid[c_x - tol][c_y] == 1)
+        {
+            h = -1;
+        }
+        else
+        {
+            h = 0;
+        }
+
+        return std::make_pair(v, h);
+    }
+    void move(int v, int h)
+    {
+        int speed = 1;
+        if (h == 1 && v == 1)
+        {
+            this->y += speed;
+        }
+        if (h == 1 && v == 0)
+        {
+            this->y += speed;
+        }
+        if (h == 1 && v == -1)
+        {
+            this->x -= speed;
+        }
+        if (h == 0 && v == 1)
+        {
+            this->x += speed;
+        }
+        if (h == 0 && v == 0)
+        {
+            this->x -= speed;
+        }
+        if (h == 0 && v == -1)
+        {
+            this->x -= speed;
+        }
+        if (h == -1 && v == 1)
+        {
+            this->x += speed;
+        }
+        if (h == -1 && v == 0)
+        {
+            this->y -= speed;
+        }
+        if (h == -1 && v == -1)
+        {
+            this->y -= speed;
+        }
+    }
     // function to save predicted grid
     void save_grid_csv()
     {
@@ -100,20 +196,7 @@ std::vector<std::vector<int>> robot_pos;
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //++++++++++DEFINE ANY GLOBAL VARIABLES/FUNCTIONS HERE+++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-void robotSensor(Object &robot)
-{
-    int x_c = robot.x, y_c = robot.y, range = 50;
-    for (int i = robot.x - range; i < robot.x + range; i++)
-    {
-        for (int j = robot.y - range; j < robot.y; j++)
-        {
-            if ((i - x_c) * (i - x_c) + (j - y_c) * (j - y_c) <= range * range)
-            {
-                // Object::grid_value()
-            }
-        }
-    }
-}
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -147,8 +230,6 @@ int main(int argc, char const *argv[])
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //++++++++++++++++++Modify the instantiation of robot++++++++++++++++
@@ -158,13 +239,8 @@ int main(int argc, char const *argv[])
 
     // 2*radius is used for width/height of robot
     my_robot robot(2 * radius, 2 * radius, env_width, env_height);
-
     // create a copy. change this to a my_robot class as well
     my_robot robot_init = robot;
-
-    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     // push the initial position onto robot_pos
     robot_pos.push_back({robot.x, robot.y});
@@ -173,14 +249,12 @@ int main(int argc, char const *argv[])
     while (true)
     {
         limit_count++;
-        //+++++++++++++++WRITE YOUR MAIN LOOP CODE HERE++++++++++++++++++++++
-        //++++++++++++++EXAMPLE: ROBOT SIMPLY MOVES LEFT+++++++++++++++++++++
-        //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        robot.x -= 1;
 
-        //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        robot.robotSensor(grid);
+
+        auto collisionVals = robot.collisionDetection();
+        robot.move(collisionVals.first, collisionVals.second);
+        // robot.x -= 1;
         robot_pos.push_back({robot.x, robot.y});
 
         if (limit_count >= 3600)
@@ -190,16 +264,6 @@ int main(int argc, char const *argv[])
         }
     }
 
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    //++++++For now, an 800x800 vector, vec, initialized to -1 is placed here+++++++++
-    //+Modify line 175 so robot.grid is passed to grid.grid_accuracy() instead of vec+
-    //++++++Modify line 180 so the third argument to render_grid() is robot.grid++++++
-    //++++++After you make the robot instance in line 133 a my_robot class with
-    //      a grid member, line 175 will have robot.grid as its argument
-    //      and line 180 will have robot.grid as its third argument.++++++++++++++++++
-    //++++++++++++++++++++++++++Then, you can remove vec++++++++++++++++++++++++++++++
-    //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    std::vector<std::vector<int>> vec(800, std::vector<int>(800, -1));
     float accuracy = grid.grid_accuracy(robot.grid);
     std::cout << "Percent of walls correctly mapped: " << accuracy * 100.0 << "%" << std::endl;
     if (config.second)
