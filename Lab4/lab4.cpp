@@ -10,6 +10,8 @@
 #include "utils.h"
 #include "render.h"
 
+using IntVector = std::vector<int>;
+
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++Modify my_robot class here+++++++++++++++++++
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -18,22 +20,21 @@ class my_robot : public Object
 {
     // define any private or protected members here
 private:
-    std::vector<int> prev_mode{0, 0, 0, 0};
-    std::queue<std::pair<int, int>> paths_queue;
-
 public:
     // define constructor with necessary parameters
     int lidar_range = 50;
     std::vector<std::vector<int>> grid; // robot’s local occupancy grid
-    int tol_45 = 0;
+    int tol = 0, tol_45 = 0;
     // call the constructor of the Object base class
     // arguments are (width, height, env_width, env_height)
     // define the grid that the robot maps. It can be a nested array or vector of size 800x800
-    my_robot(int width, int height, int env_width, int min_y, int max_y, int tol)
-        : Object(width, height, env_width, min_y, max_y, tol)
+    my_robot(int width, int height, int env_width, int min_y, int max_y, int tole)
+        : Object(width, height, env_width, min_y, max_y, tole)
     {
         // lidar_range = 50;
+        tol = tole;
         tol_45 = static_cast<int>(sin(M_PI / 4) * tol);
+        std::cout << tol_45;
         grid = std::vector<std::vector<int>>(800, std::vector<int>(800, -1));
     }
     // Lab 2 Part 1 Task 1 Sensor Function
@@ -47,8 +48,8 @@ public:
         {
             for (int j = y_c - lidar_range; j <= y_c + lidar_range; j++)
             {
-                if (i < 0 || j < 0 || i >= 800 || j >= 800)
-                    continue; // skip out-of-bounds
+                // if (i < 0 || j < 0 || i >= 800 || j >= 800)
+                //     continue; // skip out-of-bounds
                 if ((i - x_c) * (i - x_c) + (j - y_c) * (j - y_c) <= lidar_range * lidar_range)
                 {
                     grid[i][j] = Object::grid_value(true_grid, this, i, j, lidar_range);
@@ -61,7 +62,7 @@ public:
     // define any other public members and functions you wish to use
 
     // Lab 2 Part 2 Task 1 Modified Wall Functions
-    std::vector<int> wallDetection()
+    std::vector<int> detect_walls()
     {
         // x = (1/0/-1) if (right hit/free/left hit)
         // y = (1/0/-1) if (bottom hit/free/top hit)
@@ -72,8 +73,9 @@ public:
         int radius = this->width / 2;
         int c_x = this->x + radius, c_y = this->y + radius;
         int &x = mode[0], &y = mode[1], &v = mode[2], &w = mode[3];
-        int tol = radius + 5; // Center of robot from wall
+        // int tol = radius + 5; // Center of robot from wall
 
+        // left/right
         if (grid[c_x + tol][c_y] == 1)
         {
             x = 1;
@@ -82,10 +84,10 @@ public:
         {
             x = -1;
         }
-        // else
-        // {
-        //     x = 0;
-        // }
+        else
+        {
+            x = 0;
+        }
         if (grid[c_x][c_y + tol] == 1)
         {
             y = 1;
@@ -94,10 +96,10 @@ public:
         {
             y = -1;
         }
-        // else
-        // {
-        //     y = 0;
-        // }
+        else
+        {
+            y = 0;
+        }
         // Check v/w
         if (grid[c_x + tol_45][c_y + tol_45] == 1) // bottom right
         {
@@ -107,10 +109,10 @@ public:
         {
             v = -1;
         }
-        // else
-        // {
-        //     v = 0;
-        // }
+        else
+        {
+            v = 0;
+        }
         if (grid[c_x + tol_45][c_y - tol_45] == 1) // top right
         {
             w = 1;
@@ -119,106 +121,85 @@ public:
         {
             w = -1;
         }
-        // else
-        // {
-        //     w = 0;
-        // }
+        else
+        {
+            w = 0;
+        }
+
         return mode;
     }
 
-    std::pair<int, int> findDirection(std::vector<int> mode)
+    std::vector<int> prev_mode{0, 0, 0, 0};
+    std::queue<std::pair<int, int>> paths_queue;
+
+    std::pair<int, int> find_dir(std::vector<int> mode)
     {
-        // auto mode = modeArray;
-        int xw = 0, yw = 1;
+        auto currentMode = mode;
 
-        if (mode != prev_mode)
+        // wall vectors
+        int x_wall = 0, y_wall = 0;
+
+        // check hits:
+        int curr_hits = 0, prev_hits = 0;
+        for (int val : currentMode)
+            if (val != 0)
+                curr_hits++;
+        for (int val : prev_mode)
+            if (val != 0)
+                prev_hits++;
+
+        if (curr_hits == 0)
         {
-            while (!paths_queue.empty())
+            y_wall = 1;
+        }
+        else if (prev_hits <= 1 && curr_hits >= 1)
+        {
+            for (int i = 0; i < 4; i++)
             {
-                paths_queue.pop();
+                mode[i] = currentMode[i] - prev_mode[i];
             }
-
-            // FIXED: Improved logic with better corner handling
-            // Check for multiple wall collisions first
-            if (mode[0] == 1 && mode[1] == 1)
-            { // Right-Bottom corner
-                xw = -1;
-                yw = 1; // Move down-left
-            }
-            else if (mode[0] == 1 && mode[1] == -1)
-            { // Right-Top corner
-                xw = 1;
-                yw = -1; // Move up-right
-            }
-            else if (mode[0] == -1 && mode[1] == 1)
-            { // Left-Bottom corner
-                xw = -1;
-                yw = 1; // Move down-left
-            }
-            else if (mode[0] == -1 && mode[1] == -1)
-            { // Left-Top corner
-                xw = -1;
-                yw = -1; // Move up-left
-            }
-            // Single walls
-            else if (mode[0] == 1)
-            { // Right wall
-                xw = 0;
-                yw = 1; // Move down
-            }
-            else if (mode[0] == -1)
-            { // Left wall
-                xw = 0;
-                yw = -1; // Move up
-            }
-            else if (mode[1] == 1)
-            { // Bottom wall
-                xw = -1;
-                yw = 0; // Move left
-            }
-            else if (mode[1] == -1)
-            { // Top wall
-                xw = 1;
-                yw = 0; // Move right
-            }
-            // Diagonals
-            else if (mode[2] == 1)
-            { // Bottom-right
-                xw = 1;
-                yw = 1; // Move down-right
-            }
-            else if (mode[2] == -1)
-            { // Top-left
-                xw = -1;
-                yw = -1; // Move up-left
-            }
-            else if (mode[3] == 1)
-            { // Top-right
-                xw = 1;
-                yw = -1; // Move up-right
-            }
-            else if (mode[3] == -1)
-            { // Bottom-left
-                xw = -1;
-                yw = 1; // Move down-left
-            }
-            else
-            {
-                // No walls - move to find walls
-                xw = 1;
-                yw = 0; // Move right
-            }
-
-            prev_mode = mode;
+        }
+        else if (prev_hits >= 2 && curr_hits >= 1)
+        {
+            mode = currentMode;
+        }
+        // X
+        if (mode == IntVector{1, 0, 0, 0} || mode == IntVector{-1, 0, 0, 0})
+        {
+            x_wall = mode[0];
+        }
+        // Y
+        else if (mode == IntVector{0, 1, 0, 0} || mode == IntVector{0, -1, 0, 0})
+        {
+            y_wall = mode[1];
+        }
+        // V
+        else if (mode == IntVector{0, 0, 1, 0} || mode == IntVector{0, 0, -1, 0})
+        {
+            x_wall = mode[2] * tol_45;
+            y_wall = mode[2] * tol_45;
+        }
+        // W
+        else if (mode == IntVector{0, 0, 0, 1} || mode == IntVector{0, 0, 0, -1})
+        {
+            x_wall = mode[3] * tol_45;
+            y_wall = -1 * mode[3] * tol_45;
         }
 
-        return std::make_pair(xw, yw);
+        while (!paths_queue.empty())
+        {
+            paths_queue.pop();
+        }
+        prev_mode = mode;
+
+        // Return clockwise dir vector
+        return std::make_pair(x_wall, y_wall);
     }
     void move(std::pair<int, int> robot_to_wall)
     {
         // define direction to travel(x_dir, y_dir)
-        int x_dir = robot_to_wall.first;
-        int y_dir = robot_to_wall.second;
+        int x_dir = 0;
+        int y_dir = 0;
 
         bool clockwise = true;
 
@@ -229,20 +210,12 @@ public:
             //           y_dir = abs(robot_to_wall.first)/robot_to_wall.first
             if (robot_to_wall.second != 0)
             {
-                x_dir = -abs(robot_to_wall.second) / robot_to_wall.second;
+                x_dir = -1 * std::abs(robot_to_wall.second) / robot_to_wall.second;
             }
             if (robot_to_wall.first != 0)
             {
-                y_dir = abs(robot_to_wall.first) / robot_to_wall.first;
+                y_dir = std::abs(robot_to_wall.first) / robot_to_wall.first;
             }
-
-            // FIXED: Simplified movement without complex calculations
-            // this->x += x_dir;
-            // this->y += y_dir;
-            // this->x = std::max(0, std::min(799, this->x));
-            // this->y = std::max(0, std::min(799, this->y));
-            // //  x_dir = robot_to_wall.first;
-            // //  y_dir = robot_to_wall.second;
         }
         else
         {
@@ -254,7 +227,7 @@ public:
             }
             if (robot_to_wall.first != 0)
             {
-                y_dir = -abs(robot_to_wall.first) / robot_to_wall.first;
+                y_dir = -1 * abs(robot_to_wall.first) / robot_to_wall.first;
             }
         }
 
@@ -408,8 +381,8 @@ int main(int argc, char const *argv[])
         //+++++++++++++++WRITE YOUR MAIN LOOP CODE HERE++++++++++++++++++++++
         robot.robotSensor(grid);
 
-        auto mode = robot.wallDetection();
-        auto robot_to_wall = robot.findDirection(mode);
+        auto mode = robot.detect_walls();
+        auto robot_to_wall = robot.find_dir(mode);
         robot.move(robot_to_wall);
 
         //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
