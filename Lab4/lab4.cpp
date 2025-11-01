@@ -25,6 +25,8 @@ public:
     int lidar_range = 50;
     std::vector<std::vector<int>> grid; // robot’s local occupancy grid
     int tol = 0, tol_45 = 0;
+    bool clockwise = true;
+
     // call the constructor of the Object base class
     // arguments are (width, height, env_width, env_height)
     // define the grid that the robot maps. It can be a nested array or vector of size 800x800
@@ -48,8 +50,6 @@ public:
         {
             for (int j = y_c - lidar_range; j <= y_c + lidar_range; j++)
             {
-                // if (i < 0 || j < 0 || i >= 800 || j >= 800)
-                //     continue; // skip out-of-bounds
                 if ((i - x_c) * (i - x_c) + (j - y_c) * (j - y_c) <= lidar_range * lidar_range)
                 {
                     grid[i][j] = Object::grid_value(true_grid, this, i, j, lidar_range);
@@ -201,9 +201,6 @@ public:
         int x_dir = 0;
         int y_dir = 0;
 
-        bool clockwise = true;
-
-        // --- Lines 1–6 of pseudocode ---
         if (clockwise)
         {
             // Clockwise: x_dir = -abs(robot_to_wall.second)/robot_to_wall.second
@@ -231,7 +228,7 @@ public:
             }
         }
 
-        // Lines 7-13: Path queue implementation
+        // Path queue
         const int n = 5;
 
         if (paths_queue.empty())
@@ -374,16 +371,97 @@ int main(int argc, char const *argv[])
     robot_pos.push_back({robot.x, robot.y});
     int limit_count = 0;
 
+    bool sweep_mode = false;
+    bool lapped = false;
+    bool hitWall = false;
+    int x_pos = 0, y_pos = 0;
+    int y_ref = 0;
+    int max_y = robot.y;
+    int min_y = robot.y;
     // run the program indefinitely until robot hits the goal or an obstacle
     while (true)
     {
         limit_count++;
         //+++++++++++++++WRITE YOUR MAIN LOOP CODE HERE++++++++++++++++++++++
         robot.robotSensor(grid);
-
         auto mode = robot.detect_walls();
-        auto robot_to_wall = robot.find_dir(mode);
-        robot.move(robot_to_wall);
+
+        // auto robot_to_wall = robot.find_dir(mode);
+        // robot.move(robot_to_wall);
+        // Lab 2 Part 2 Task 2
+        if (!sweep_mode)
+        {
+            if (!hitWall && mode != IntVector{0, 0, 0, 0})
+            {
+                hitWall = true;
+                x_pos = robot.x;
+                y_pos = robot.y;
+                std::cout << x_pos << " " << y_pos;
+            }
+            auto robot_to_wall = robot.find_dir(mode);
+            robot.move(robot_to_wall);
+
+            // Step 6: Update max/min Y boundaries
+            if (robot.y > max_y)
+            {
+                max_y = robot.y;
+            }
+            if (robot.y < min_y)
+            {
+                min_y = robot.y;
+            }
+            // Step 7–9: Check for lapping condition (reaching max_y again)
+            if (robot.y == y_pos && robot.x == x_pos)
+            {
+                lapped = true;
+                // std::cout << "=== Entering SWEEP MODE at y_ref = " << y_ref << " ===" << std::endl;
+            }
+            if (robot.y <= min_y && lapped)
+            {
+                y_ref = robot.y;
+                sweep_mode = true;
+            }
+        }
+        else
+        {
+            auto robot_to_wall = robot.find_dir(mode);
+
+            if (robot.prev_mode == IntVector{0, 0, 0, 0} && mode != IntVector{0, 0, 0, 0})
+            {
+                // hitWall = true;
+                // robot.prev_mode==mode;
+                // robot.clockwise = !robot.clockwise;
+                // std::cout << "Toggled direction! Now " << (robot.clockwise ? "CW" : "CCW") << std::endl;
+            }
+
+            // Move normally along walls
+            robot.move(robot_to_wall);
+
+            // Move up one strip and shift left/right after y_ref + 50
+            if (robot.y == y_ref + 50)
+            {
+                // std::vector<int> mode_side = mode;
+                while (mode != IntVector{0, 0, 0, 0})
+                {
+                    // robot.move(robot_to_wall);
+                    if (robot.clockwise)
+                        robot.x -= 1; // move left
+                    else
+                        robot.x += 1; // move right
+                    robot.robotSensor(grid);
+                    mode = robot.detect_walls();
+                }
+                // Set new reference line
+                y_ref = robot.y;
+                std::cout << "Shifted to new sweep line at y=" << y_ref << std::endl;
+            }
+            // Stop after reaching bottom
+            if (robot.y >= max_y - 5)
+            {
+                std::cout << "Reached max_y boundary. Sweep complete!" << std::endl;
+                break;
+            }
+        }
 
         //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
