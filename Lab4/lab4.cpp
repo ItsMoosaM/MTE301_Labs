@@ -50,9 +50,12 @@ public:
         {
             for (int j = y_c - lidar_range; j <= y_c + lidar_range; j++)
             {
-                if ((i - x_c) * (i - x_c) + (j - y_c) * (j - y_c) <= lidar_range * lidar_range)
+                if (i >= 0 && i < 800 && j >= 0 && j < 800)
                 {
-                    grid[i][j] = Object::grid_value(true_grid, this, i, j, lidar_range);
+                    if ((i - x_c) * (i - x_c) + (j - y_c) * (j - y_c) <= lidar_range * lidar_range)
+                    {
+                        grid[i][j] = Object::grid_value(true_grid, this, i, j, lidar_range);
+                    }
                 }
             }
         }
@@ -64,66 +67,59 @@ public:
     // Lab 2 Part 2 Task 1 Modified Wall Functions
     std::vector<int> detect_walls()
     {
-        // x = (1/0/-1) if (right hit/free/left hit)
-        // y = (1/0/-1) if (bottom hit/free/top hit)
-        // v = (1/0/-1) if (bottom right hit/free/top left hit)
-        // w = (1/0/-1) if (top right hit/free/bottom left hit)
         std::vector<int> mode{0, 0, 0, 0};
 
         int radius = this->width / 2;
         int c_x = this->x + radius, c_y = this->y + radius;
         int &x = mode[0], &y = mode[1], &v = mode[2], &w = mode[3];
-        // int tol = radius + 5; // Center of robot from wall
+
+        // Boundary checks for grid access
+        auto safe_grid_check = [&](int x, int y) -> int
+        {
+            if (x >= 0 && x < 800 && y >= 0 && y < 800)
+            {
+                return grid[x][y];
+            }
+            return -1; // Out of bounds treated as unknown
+        };
 
         // left/right
-        if (grid[c_x + tol][c_y] == 1)
+        if (safe_grid_check(c_x + tol, c_y) == 1)
         {
             x = 1;
         }
-        else if (grid[c_x - tol][c_y] == 1)
+        else if (safe_grid_check(c_x - tol, c_y) == 1)
         {
             x = -1;
         }
-        else
-        {
-            x = 0;
-        }
-        if (grid[c_x][c_y + tol] == 1)
+
+        // top/bottom
+        if (safe_grid_check(c_x, c_y + tol) == 1)
         {
             y = 1;
         }
-        else if (grid[c_x][c_y - tol] == 1)
+        else if (safe_grid_check(c_x, c_y - tol) == 1)
         {
             y = -1;
         }
-        else
-        {
-            y = 0;
-        }
-        // Check v/w
-        if (grid[c_x + tol_45][c_y + tol_45] == 1) // bottom right
+
+        // diagonals
+        if (safe_grid_check(c_x + tol_45, c_y + tol_45) == 1)
         {
             v = 1;
         }
-        else if (grid[c_x - tol_45][c_y - tol_45] == 1) // top left
+        else if (safe_grid_check(c_x - tol_45, c_y - tol_45) == 1)
         {
             v = -1;
         }
-        else
-        {
-            v = 0;
-        }
-        if (grid[c_x + tol_45][c_y - tol_45] == 1) // top right
+
+        if (safe_grid_check(c_x + tol_45, c_y - tol_45) == 1)
         {
             w = 1;
         }
-        else if (grid[c_x - tol_45][c_y + tol_45] == 1) // bottom left
+        else if (safe_grid_check(c_x - tol_45, c_y + tol_45) == 1)
         {
             w = -1;
-        }
-        else
-        {
-            w = 0;
         }
 
         return mode;
@@ -192,7 +188,7 @@ public:
         }
         prev_mode = mode;
 
-        // Return clockwise dir vector
+        // Return clockwise wall dir vector
         return std::make_pair(x_wall, y_wall);
     }
     void move(std::pair<int, int> robot_to_wall)
@@ -247,6 +243,17 @@ public:
             paths_queue.pop();
         }
         return;
+    }
+    void switch_dir()
+    { // change name
+        if (clockwise == true)
+        {
+            clockwise = false;
+        }
+        else
+        {
+            clockwise = true;
+        }
     }
     // function to save predicted grid
     void save_grid_csv()
@@ -376,8 +383,9 @@ int main(int argc, char const *argv[])
     bool hitWall = false;
     int x_pos = 0, y_pos = 0;
     int y_ref = 0;
-    int max_y = robot.y;
-    int min_y = robot.y;
+    int max_y = 0;
+    int min_y = 800;
+    IntVector dir1(4, 0), dir2(4, 0);
     // run the program indefinitely until robot hits the goal or an obstacle
     while (true)
     {
@@ -391,13 +399,6 @@ int main(int argc, char const *argv[])
         // Lab 2 Part 2 Task 2
         if (!sweep_mode)
         {
-            if (!hitWall && mode != IntVector{0, 0, 0, 0})
-            {
-                hitWall = true;
-                x_pos = robot.x;
-                y_pos = robot.y;
-                std::cout << x_pos << " " << y_pos;
-            }
             auto robot_to_wall = robot.find_dir(mode);
             robot.move(robot_to_wall);
 
@@ -410,13 +411,8 @@ int main(int argc, char const *argv[])
             {
                 min_y = robot.y;
             }
-            // Step 7–9: Check for lapping condition (reaching max_y again)
-            if (robot.y == y_pos && robot.x == x_pos)
-            {
-                lapped = true;
-                // std::cout << "=== Entering SWEEP MODE at y_ref = " << y_ref << " ===" << std::endl;
-            }
-            if (robot.y <= min_y && lapped)
+            // make sure at max_y and walls are mapped
+            if (grid.wall_accuracy(robot.grid) >= .99 && robot.y == min_y)
             {
                 y_ref = robot.y;
                 sweep_mode = true;
@@ -424,43 +420,72 @@ int main(int argc, char const *argv[])
         }
         else
         {
+            // std::cout << max_y;
             auto robot_to_wall = robot.find_dir(mode);
 
-            if (robot.prev_mode == IntVector{0, 0, 0, 0} && mode != IntVector{0, 0, 0, 0})
+            if (dir1 == dir2 && robot.detect_walls() != dir2)
             {
-                // hitWall = true;
-                // robot.prev_mode==mode;
-                // robot.clockwise = !robot.clockwise;
-                // std::cout << "Toggled direction! Now " << (robot.clockwise ? "CW" : "CCW") << std::endl;
+
+                robot.switch_dir();
+                std::cout << "Toggled direction! Now " << (robot.clockwise ? "CW" : "CCW") << std::endl;
             }
 
             // Move normally along walls
-            robot.move(robot_to_wall);
+            // while (robot.y < y_ref + 50)
+            // {
+                robot.move(robot_to_wall);
+                // robot_pos.push_back({robot.x, robot.y});
+            // }
 
-            // Move up one strip and shift left/right after y_ref + 50
+            // Move down one strip and shift left/right after y_ref + 50
             if (robot.y == y_ref + 50)
             {
-                // std::vector<int> mode_side = mode;
-                while (mode != IntVector{0, 0, 0, 0})
+                // for y
+                if (robot.clockwise)
                 {
-                    // robot.move(robot_to_wall);
-                    if (robot.clockwise)
-                        robot.x -= 1; // move left
-                    else
-                        robot.x += 1; // move right
-                    robot.robotSensor(grid);
-                    mode = robot.detect_walls();
+                    while (robot.detect_walls() != dir2)
+                    {
+                        robot.robotSensor(grid);
+                        robot.x = robot.x - 1;
+                        robot_pos.push_back({robot.x, robot.y});
+                        limit_count++;
+                    }
+                    while (robot.detect_walls() == dir2)
+                    {
+                        robot.robotSensor(grid);
+                        robot.x = robot.x - 1;
+                        robot_pos.push_back({robot.x, robot.y});
+                        limit_count++;
+                    } // left wall
+                    y_ref += 50;
+                    robot.switch_dir();
+                    // for x
                 }
-                // Set new reference line
-                y_ref = robot.y;
-                std::cout << "Shifted to new sweep line at y=" << y_ref << std::endl;
+                else if (!robot.clockwise)
+                {
+                    while (robot.detect_walls() != dir2)
+                    {
+                        robot.robotSensor(grid);
+                        robot.x = robot.x + 1;
+                        robot_pos.push_back({robot.x, robot.y});
+                        limit_count++;
+                    }
+                    while (robot.detect_walls() == dir2)
+                    {
+                        robot.robotSensor(grid);
+                        robot.x = robot.x + 1;
+                        robot_pos.push_back({robot.x, robot.y});
+                        limit_count++;
+                    } // right wall
+                    y_ref = y_ref + 50;
+                    robot.switch_dir();
+                }
             }
-            // Stop after reaching bottom
-            if (robot.y >= max_y - 5)
+            if (robot.y >= max_y)
             {
-                std::cout << "Reached max_y boundary. Sweep complete!" << std::endl;
                 break;
             }
+            dir1 = robot.detect_walls();
         }
 
         //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
