@@ -385,7 +385,8 @@ int main(int argc, char const *argv[])
     int y_ref = 0;
     int max_y = 0;
     int min_y = 800;
-    IntVector dir1(4, 0), dir2(4, 0);
+    IntVector dir1(4, 0);
+    const IntVector dir2(4, 0);
     // run the program indefinitely until robot hits the goal or an obstacle
     while (true)
     {
@@ -394,8 +395,6 @@ int main(int argc, char const *argv[])
         robot.robotSensor(grid);
         auto mode = robot.detect_walls();
 
-        // auto robot_to_wall = robot.find_dir(mode);
-        // robot.move(robot_to_wall);
         // Lab 2 Part 2 Task 2
         if (!sweep_mode)
         {
@@ -411,31 +410,28 @@ int main(int argc, char const *argv[])
             {
                 min_y = robot.y;
             }
-            // make sure at max_y and walls are mapped
+            // make sure at min_y and walls are mapped
             if (grid.wall_accuracy(robot.grid) >= .99 && robot.y == min_y)
             {
                 y_ref = robot.y;
+                dir1 = robot.detect_walls();
                 sweep_mode = true;
             }
         }
         else
         {
             // std::cout << max_y;
-            auto robot_to_wall = robot.find_dir(mode);
+            auto mode_now = robot.detect_walls();
+            auto robot_to_wall = robot.find_dir(mode_now);
 
-            if (dir1 == dir2 && robot.detect_walls() != dir2)
+            if (dir1 == dir2 && mode_now != dir2)
             {
-
                 robot.switch_dir();
-                std::cout << "Toggled direction! Now " << (robot.clockwise ? "CW" : "CCW") << std::endl;
             }
 
             // Move normally along walls
-            // while (robot.y < y_ref + 50)
-            // {
-                robot.move(robot_to_wall);
-                // robot_pos.push_back({robot.x, robot.y});
-            // }
+
+            robot.move(robot_to_wall);
 
             // Move down one strip and shift left/right after y_ref + 50
             if (robot.y == y_ref + 50)
@@ -457,8 +453,7 @@ int main(int argc, char const *argv[])
                         robot_pos.push_back({robot.x, robot.y});
                         limit_count++;
                     } // left wall
-                    y_ref += 50;
-                    robot.switch_dir();
+
                     // for x
                 }
                 else if (!robot.clockwise)
@@ -477,15 +472,16 @@ int main(int argc, char const *argv[])
                         robot_pos.push_back({robot.x, robot.y});
                         limit_count++;
                     } // right wall
-                    y_ref = y_ref + 50;
-                    robot.switch_dir();
                 }
+                y_ref = robot.y;
+                robot.switch_dir();
+                std::cout << "Toggled direction! Now " << (robot.clockwise ? "CW" : "CCW") << std::endl;
             }
             if (robot.y >= max_y)
             {
                 break;
             }
-            dir1 = robot.detect_walls();
+            dir1 = mode_now;
         }
 
         //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
