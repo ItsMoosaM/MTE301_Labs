@@ -10,7 +10,6 @@
 #include "utils.h"
 #include "render.h"
 
-using IntVector = std::vector<int>;
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++Modify my_robot class here+++++++++++++++++++
@@ -19,7 +18,6 @@ using IntVector = std::vector<int>;
 class my_robot : public Object
 {
     // define any private or protected members here
-private:
 public:
     // define constructor with necessary parameters
     int lidar_range = 50;
@@ -39,6 +37,7 @@ public:
         std::cout << tol_45;
         grid = std::vector<std::vector<int>>(800, std::vector<int>(800, -1));
     }
+
     // Lab 2 Part 1 Task 1 Sensor Function
     //  define the robot's sensor that defines (x, y) points of its grid as occupied/unoccupied/unknown (1/0/-1)
     void robotSensor(grid_util &true_grid)
@@ -65,15 +64,16 @@ public:
     // define any other public members and functions you wish to use
 
     // Lab 2 Part 2 Task 1 Modified Wall Functions
+    // following functions for task1
     std::vector<int> detect_walls()
     {
-        std::vector<int> mode{0, 0, 0, 0};
-
+        std::vector<int> direction(4, 0);
         int radius = this->width / 2;
-        int c_x = this->x + radius, c_y = this->y + radius;
-        int &x = mode[0], &y = mode[1], &v = mode[2], &w = mode[3];
-
-        // Boundary checks for grid access
+        int cx = this->x + radius;
+        int cy = this->y + radius;
+        int tol = radius + 10;
+        const int tol_45 = tol * cos(45 * M_PI / 180);
+        // Skip Out Of Bound Checks
         auto safe_grid_check = [&](int x, int y) -> int
         {
             if (x >= 0 && x < 800 && y >= 0 && y < 800)
@@ -82,179 +82,146 @@ public:
             }
             return -1; // Out of bounds treated as unknown
         };
-
-        // left/right
-        if (safe_grid_check(c_x + tol, c_y) == 1)
+        if (safe_grid_check(cx, cy - tol) == 1)
         {
-            x = 1;
+            direction[0] = 1; // Top Wall
         }
-        else if (safe_grid_check(c_x - tol, c_y) == 1)
+        else if (safe_grid_check(cx, cy + tol) == 1)
         {
-            x = -1;
+            direction[0] = -1; // Bottom wall
         }
-
-        // top/bottom
-        if (safe_grid_check(c_x, c_y + tol) == 1)
+        if (safe_grid_check(cx + tol, cy) == 1)
         {
-            y = 1;
+            direction[1] = 1; // Right wall
         }
-        else if (safe_grid_check(c_x, c_y - tol) == 1)
+        else if (safe_grid_check(cx - tol, cy) == 1)
         {
-            y = -1;
+            direction[1] = -1; // Left wall
         }
-
-        // diagonals
-        if (safe_grid_check(c_x + tol_45, c_y + tol_45) == 1)
+        if (safe_grid_check(cx - tol_45, cy - tol_45) == 1)
         {
-            v = 1;
+            direction[2] = 1; // Top-left diagonal
         }
-        else if (safe_grid_check(c_x - tol_45, c_y - tol_45) == 1)
+        else if (safe_grid_check(cx + tol_45, cy + tol_45) == 1)
         {
-            v = -1;
+            direction[2] = -1; // Bottom-right diagonal
         }
-
-        if (safe_grid_check(c_x + tol_45, c_y - tol_45) == 1)
+        if (safe_grid_check(cx + tol_45, cy - tol_45) == 1)
         {
-            w = 1;
+            direction[3] = 1; // Top-right diagonal
         }
-        else if (safe_grid_check(c_x - tol_45, c_y + tol_45) == 1)
+        else if (safe_grid_check(cx - tol_45, cy + tol_45) == 1)
         {
-            w = -1;
+            direction[3] = -1; // Bottom-left diagonal
         }
-
-        return mode;
+        return direction;
     }
 
-    std::vector<int> prev_mode{0, 0, 0, 0};
-    std::queue<std::pair<int, int>> paths_queue;
-
-    std::pair<int, int> find_dir(std::vector<int> mode)
+    std::queue<std::vector<int>> paths_queue;
+    void find_dir(const std::vector<int> &direction)
     {
-        auto currentMode = mode;
+        std::vector<int> movementVector(2, 0);
 
-        // wall vectors
-        int x_wall = 0, y_wall = 0;
-
-        // check hits:
-        int curr_hits = 0, prev_hits = 0;
-        for (int val : currentMode)
-            if (val != 0)
-                curr_hits++;
-        for (int val : prev_mode)
-            if (val != 0)
-                prev_hits++;
-
-        if (curr_hits == 0)
+        // Give Default Movement to left
+        if (direction[0] == 0 && direction[1] == 0 && direction[2] == 0 && direction[3] == 0)
         {
-            y_wall = 1;
-        }
-        else if (prev_hits <= 1 && curr_hits >= 1)
-        {
-            for (int i = 0; i < 4; i++)
-            {
-                mode[i] = currentMode[i] - prev_mode[i];
-            }
-        }
-        else if (prev_hits >= 2 && curr_hits >= 1)
-        {
-            mode = currentMode;
-        }
-        // X
-        if (mode == IntVector{1, 0, 0, 0} || mode == IntVector{-1, 0, 0, 0})
-        {
-            x_wall = mode[0];
-        }
-        // Y
-        else if (mode == IntVector{0, 1, 0, 0} || mode == IntVector{0, -1, 0, 0})
-        {
-            y_wall = mode[1];
-        }
-        // V
-        else if (mode == IntVector{0, 0, 1, 0} || mode == IntVector{0, 0, -1, 0})
-        {
-            x_wall = mode[2] * tol_45;
-            y_wall = mode[2] * tol_45;
-        }
-        // W
-        else if (mode == IntVector{0, 0, 0, 1} || mode == IntVector{0, 0, 0, -1})
-        {
-            x_wall = mode[3] * tol_45;
-            y_wall = -1 * mode[3] * tol_45;
-        }
-
-        while (!paths_queue.empty())
-        {
-            paths_queue.pop();
-        }
-        prev_mode = mode;
-
-        // Return clockwise wall dir vector
-        return std::make_pair(x_wall, y_wall);
-    }
-    void move(std::pair<int, int> robot_to_wall)
-    {
-        // define direction to travel(x_dir, y_dir)
-        int x_dir = 0;
-        int y_dir = 0;
-
-        if (clockwise)
-        {
-            // Clockwise: x_dir = -abs(robot_to_wall.second)/robot_to_wall.second
-            //           y_dir = abs(robot_to_wall.first)/robot_to_wall.first
-            if (robot_to_wall.second != 0)
-            {
-                x_dir = -1 * std::abs(robot_to_wall.second) / robot_to_wall.second;
-            }
-            if (robot_to_wall.first != 0)
-            {
-                y_dir = std::abs(robot_to_wall.first) / robot_to_wall.first;
-            }
+            movementVector = {-1, 0};
         }
         else
         {
-            // Counterclockwise: x_dir = abs(robot_to_wall.second)/robot_to_wall.second
-            //                  y_dir = -abs(robot_to_wall.first)/robot_to_wall.first
-            if (robot_to_wall.second != 0)
+            if (clockwise)
             {
-                x_dir = abs(robot_to_wall.second) / robot_to_wall.second;
+                if (direction[2] == 1)
+                {
+                    movementVector = {1, -1};
+                }
+                if (direction[0] == 1 && direction[2] == 0 && direction[3] == 0)
+                {
+                    movementVector = {1, 0};
+                }
+                if (direction[3] == 1)
+                {
+                    movementVector = {1, 1};
+                }
+                if (direction[1] == 1 && direction[2] == 0 && direction[3] == 0)
+                {
+                    movementVector = {0, 1};
+                }
+                if (direction[2] == -1)
+                {
+                    movementVector = {-1, 1};
+                }
+                if (direction[0] == -1 && direction[2] == 0 && direction[3] == 0)
+                {
+                    movementVector = {-1, 0};
+                }
+                if (direction[3] == -1 && direction[2] != 1)
+                {
+                    movementVector = {-1, -1};
+                }
+                if (direction[1] == -1 && direction[2] == 0 && direction[3] == 0)
+                {
+                    movementVector = {0, -1};
+                }
             }
-            if (robot_to_wall.first != 0)
+            else
             {
-                y_dir = -1 * abs(robot_to_wall.first) / robot_to_wall.first;
+                if (direction[2] == 1)
+                {
+                    movementVector = {-1, 1};
+                }
+                if (direction[1] == -1 && direction[2] == 0 && direction[3] == 0)
+                {
+                    movementVector = {0, 1};
+                }
+                if (direction[3] == -1)
+                {
+                    movementVector = {1, 1};
+                }
+                if (direction[0] == -1 && direction[2] == 0 && direction[3] == 0)
+                {
+                    movementVector = {1, 0};
+                }
+                if (direction[2] == -1)
+                {
+                    movementVector = {1, -1};
+                }
+                if (direction[1] == 1 && direction[2] == 0 && direction[3] == 0)
+                {
+                    movementVector = {0, -1};
+                }
+                if (direction[3] == 1 && direction[2] != 1)
+                {
+                    movementVector = {-1, -1};
+                }
+                if (direction[0] == 1 && direction[2] == 0 && direction[3] == 0)
+                {
+                    movementVector = {-1, 0};
+                }
             }
         }
-
-        // Path queue
-        const int n = 5;
-
-        if (paths_queue.empty())
-        {
-            for (int i = 1; i <= n; i++)
-            {
-                paths_queue.push({this->x + x_dir * i, this->y + y_dir * i});
-            }
-        }
-
+        //Add vector to queue
+        paths_queue.push(movementVector);
+    }
+    //Move the robot using the queue
+    void move()
+    {
         if (!paths_queue.empty())
         {
-            auto next_pos = paths_queue.front();
-            this->x = next_pos.first;
-            this->y = next_pos.second;
+            std::vector<int> moveVector = paths_queue.front();
             paths_queue.pop();
+
+            // Update position
+            this->x += moveVector[0];
+            this->y += moveVector[1];
         }
-        return;
     }
+
     void switch_dir()
-    { // change name
-        if (clockwise == true)
-        {
-            clockwise = false;
-        }
-        else
-        {
-            clockwise = true;
-        }
+    {
+        clockwise = !clockwise;
     }
+
     // function to save predicted grid
     void save_grid_csv()
     {
@@ -298,8 +265,7 @@ public:
         std::cout << "Robot's grid written to " << filename << std::endl;
     }
 };
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 //===== Main parameters =====
@@ -321,7 +287,7 @@ std::vector<std::vector<int>> robot_pos;
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //++++++++++DEFINE ANY GLOBAL VARIABLES/FUNCTIONS HERE+++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+using IntVector = std::vector<int>;
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -378,30 +344,25 @@ int main(int argc, char const *argv[])
     robot_pos.push_back({robot.x, robot.y});
     int limit_count = 0;
 
+    //Sweeping Variables
     bool sweep_mode = false;
-    bool lapped = false;
-    bool hitWall = false;
-    int x_pos = 0, y_pos = 0;
-    int y_ref = 0;
-    int max_y = 0;
-    int min_y = 800;
-    IntVector dir1(4, 0);
-    const IntVector dir2(4, 0);
+    int y_ref = 0, max_y = 0, min_y = 800;
+    IntVector prev_direction(4, 0);
+    const IntVector freeDirection(4, 0);
     // run the program indefinitely until robot hits the goal or an obstacle
     while (true)
     {
         limit_count++;
         //+++++++++++++++WRITE YOUR MAIN LOOP CODE HERE++++++++++++++++++++++
         robot.robotSensor(grid);
-        auto mode = robot.detect_walls();
 
         // Lab 2 Part 2 Task 2
         if (!sweep_mode)
         {
-            auto robot_to_wall = robot.find_dir(mode);
-            robot.move(robot_to_wall);
+            robot.find_dir(robot.detect_walls());
+            robot.move();
 
-            // Step 6: Update max/min Y boundaries
+            // Update max/min Y boundaries
             if (robot.y > max_y)
             {
                 max_y = robot.y;
@@ -411,27 +372,23 @@ int main(int argc, char const *argv[])
                 min_y = robot.y;
             }
             // make sure at min_y and walls are mapped
-            if (grid.wall_accuracy(robot.grid) >= .99 && robot.y == min_y)
+            if (grid.wall_accuracy(robot.grid) >= .95 && robot.y == min_y)
             {
                 y_ref = robot.y;
-                dir1 = robot.detect_walls();
+                robot.switch_dir();
                 sweep_mode = true;
             }
         }
         else
         {
-            // std::cout << max_y;
-            auto mode_now = robot.detect_walls();
-            auto robot_to_wall = robot.find_dir(mode_now);
-
-            if (dir1 == dir2 && mode_now != dir2)
+            robot.find_dir(robot.detect_walls());
+            if (prev_direction == freeDirection && robot.detect_walls() != freeDirection)
             {
                 robot.switch_dir();
             }
 
             // Move normally along walls
-
-            robot.move(robot_to_wall);
+            robot.move();
 
             // Move down one strip and shift left/right after y_ref + 50
             if (robot.y == y_ref + 50)
@@ -439,14 +396,14 @@ int main(int argc, char const *argv[])
                 // for y
                 if (robot.clockwise)
                 {
-                    while (robot.detect_walls() != dir2)
+                    while (robot.detect_walls() != freeDirection)
                     {
                         robot.robotSensor(grid);
                         robot.x = robot.x - 1;
                         robot_pos.push_back({robot.x, robot.y});
                         limit_count++;
                     }
-                    while (robot.detect_walls() == dir2)
+                    while (robot.detect_walls() == freeDirection)
                     {
                         robot.robotSensor(grid);
                         robot.x = robot.x - 1;
@@ -458,14 +415,14 @@ int main(int argc, char const *argv[])
                 }
                 else if (!robot.clockwise)
                 {
-                    while (robot.detect_walls() != dir2)
+                    while (robot.detect_walls() != freeDirection)
                     {
                         robot.robotSensor(grid);
                         robot.x = robot.x + 1;
                         robot_pos.push_back({robot.x, robot.y});
                         limit_count++;
                     }
-                    while (robot.detect_walls() == dir2)
+                    while (robot.detect_walls() == freeDirection)
                     {
                         robot.robotSensor(grid);
                         robot.x = robot.x + 1;
@@ -481,7 +438,7 @@ int main(int argc, char const *argv[])
             {
                 break;
             }
-            dir1 = mode_now;
+            prev_direction = robot.detect_walls();
         }
 
         //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

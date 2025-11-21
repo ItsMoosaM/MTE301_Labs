@@ -27,7 +27,6 @@ public:
     my_robot(int width, int height, int env_width, int env_height)
         : Object(width, height, env_width, env_height)
     {
-        // lidar_range = 50;
         grid = std::vector<std::vector<int>>(800, std::vector<int>(800, -1));
     }
     // Task 1 Sensor Function
